@@ -1,0 +1,101 @@
+# microshort 2 — LOCAL REFERENCE STACK
+#
+# This file exists so the maintainer and CI can run the whole system on one
+# machine. It is NOT the deployment: students deploy the three services and a
+# PostgreSQL database with their own tooling (Ansible, Kubernetes, Terraform)
+# using the configuration contract in DEPLOYMENT-CONTRACT.md.
+#
+# Secrets come from .env (copy .env.example). `:?` makes compose refuse to
+# start when one is missing — the same rule each service enforces itself.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: microshort
+      POSTGRES_USER: microshort
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      # Loopback only: handy for psql from the host, never reachable from the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U microshort -d microshort"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./services/api
+    environment:
+      # The images default to production, which refuses "change-me" secrets.
+      # The local stack runs as development so .env.example works unchanged.
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgres://microshort:${POSTGRES_PASSWORD:?}@db:5432/microshort
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?set SERVICE_TOKEN in .env}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS in .env}
+      BASE_PATH: ${BASE_PATH:-}
+      HEALTH_TARGETS: ${HEALTH_TARGETS:-}
+      AUTH_TRUSTED_PROXY: ${AUTH_TRUSTED_PROXY:-}
+      AUTH_TRUSTED_PROXY_SIGNER: ${AUTH_TRUSTED_PROXY_SIGNER:-}
+      AUTH_TRUSTED_PROXY_ADMINS: ${AUTH_TRUSTED_PROXY_ADMINS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Local stack only: the integration suite logs in many times per run.
+      # The real default is 10 per 15 min; compose.test.override.yml tests it.
+      LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-1000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  redirect:
+    build: ./services/redirect
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_URL: http://api:3000
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build: ./services/web
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}   # development = static files served with no-store
+      API_BASE_URL: ${API_BASE_URL:?set API_BASE_URL in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  db-data:

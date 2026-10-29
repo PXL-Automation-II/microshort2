@@ -1,0 +1,88 @@
+# api — request examples for the VS Code REST Client / JetBrains HTTP Client
+@api = http://localhost:3000
+@jwt = eyJ...
+@apiKey = msh_...
+@serviceToken = change-me-local-only-service-token
+
+### Register (first user becomes admin)
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{ "email": "me@example.com", "password": "super-secret-1" }
+
+### Login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "me@example.com", "password": "super-secret-1" }
+
+### Who am I
+GET {{api}}/auth/me
+Authorization: Bearer {{jwt}}
+
+### Create an API key (shown once)
+POST {{api}}/auth/api-keys
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{ "name": "my key" }
+
+### List my API keys
+GET {{api}}/auth/api-keys
+Authorization: Bearer {{jwt}}
+
+### Shorten
+POST {{api}}/urls
+X-API-Key: {{apiKey}}
+Content-Type: application/json
+
+{ "url": "https://en.wikipedia.org/wiki/URL_shortening", "customSlug": "wiki" }
+
+### My URLs
+GET {{api}}/urls?limit=20
+X-API-Key: {{apiKey}}
+
+### Update destination
+PUT {{api}}/urls/wiki
+X-API-Key: {{apiKey}}
+Content-Type: application/json
+
+{ "url": "https://example.com/moved" }
+
+### Delete
+DELETE {{api}}/urls/wiki
+X-API-Key: {{apiKey}}
+
+### Admin: dashboard
+GET {{api}}/admin/dashboard
+X-API-Key: {{apiKey}}
+
+### Admin: users / user detail
+GET {{api}}/admin/users
+X-API-Key: {{apiKey}}
+
+### Admin: search URLs
+GET {{api}}/admin/urls?q=wiki
+X-API-Key: {{apiKey}}
+
+### Admin: health of all services
+GET {{api}}/admin/health/services
+X-API-Key: {{apiKey}}
+
+### Internal: resolve slug (what redirect calls)
+GET {{api}}/internal/urls/wiki
+X-Service-Token: {{serviceToken}}
+
+### Internal: click batch (what redirect sends)
+POST {{api}}/internal/clicks
+X-Service-Token: {{serviceToken}}
+Content-Type: application/json
+
+{ "events": [ { "slug": "wiki", "ts": "2026-10-28T12:00:00Z", "referrer": null, "userAgent": "curl", "ipHash": null } ] }
+
+### Ops
+GET {{api}}/health
+###
+GET {{api}}/ready
+###
+GET {{api}}/metrics

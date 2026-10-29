@@ -1,0 +1,13 @@
+# Test profile for the rate-limit suite: tiny limits, short windows, no cache.
+#   docker compose -f compose.yml -f compose.test.override.yml up -d --build --wait
+#   npm run test:rate
+services:
+  api:
+    environment:
+      LOGIN_RATE_LIMIT_MAX: "3"
+      LOGIN_RATE_LIMIT_WINDOW_MS: "5000"
+      URL_CREATE_RATE_LIMIT_MAX: "5"
+      URL_CREATE_RATE_LIMIT_WINDOW_MS: "5000"
+  redirect:
+    environment:
+      CACHE_TTL_SECONDS: "0"

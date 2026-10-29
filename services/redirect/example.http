@@ -1,0 +1,18 @@
+# redirect — request examples for the VS Code REST Client / JetBrains HTTP Client
+@redirect = http://localhost:8080
+
+### Landing page
+GET {{redirect}}/
+
+### Follow a short link (expect 302 + Location + Cache-Control: no-store)
+GET {{redirect}}/wiki
+
+### Unknown slug (404, HTML)
+GET {{redirect}}/does-not-exist
+
+### Ops
+GET {{redirect}}/health
+###
+GET {{redirect}}/ready
+###
+GET {{redirect}}/metrics

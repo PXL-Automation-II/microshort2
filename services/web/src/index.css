@@ -1,0 +1,520 @@
+/* microshort 2 dashboard - global styles.
+ *
+ * Look and rules come from the PXL Classroom design system (DESIGN.md in this
+ * folder): a dense, calm, GitHub Primer-like interface. Every colour token is
+ * declared once as light-dark(<light>, <dark>) and resolves against the
+ * computed `color-scheme` of :root; the theme toggle flips that one property.
+ *
+ * shadcn/ui components read the semantic variables (--background, --card,
+ * --primary, ...) which are mapped onto the Classroom tokens below, and the
+ * few components whose Tailwind utilities fight the design (button, card,
+ * table, input, dialog) are restyled through their data-slot attributes.
+ * Author CSS outside a @layer outranks Tailwind's layered utilities, so these
+ * overrides need no !important. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans-stack);
+  --font-mono: var(--font-mono-stack);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: var(--radius-xs);
+  --radius-md: var(--radius-sm);
+  --radius-lg: var(--radius-md);
+  --radius-xl: var(--radius-lg);
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+  --radius-4xl: 16px;
+}
+
+/* ==========================================================================
+   THEME TOKENS (PXL Classroom DESIGN.md §2) - the only place a colour literal
+   may appear. Light values are Primer's light theme; dark values Primer dark.
+   ========================================================================== */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces: the light ramp is inverted (grey canvas, white cards) so a
+     surface reads as raised in both themes without borders. */
+  --bg-canvas:           light-dark(#eaeef2, #0d1117);
+  --bg-surface:          light-dark(#ffffff, #161b22);
+  --bg-surface-elevated: light-dark(#ffffff, #1c2128);
+  --bg-surface-hover:    light-dark(#f3f4f6, #21262d);
+  --bg-inset:            light-dark(#f6f8fa, #0d1117);
+  --bg-btn-hover:        light-dark(#eef0f3, #30363d);
+  --bg-btn-active:       light-dark(#e4e8ec, #282e33);
+  --bg-scrim:            light-dark(rgba(31, 35, 40, 0.50), rgba(1, 4, 9, 0.75));
+  --overlay-subtle:      light-dark(rgba(31, 35, 40, 0.04), rgba(255, 255, 255, 0.05));
+  --overlay-muted:       light-dark(rgba(31, 35, 40, 0.07), rgba(255, 255, 255, 0.08));
+
+  --border-default:  light-dark(#d1d9e0, #30363d);
+  --border-muted:    light-dark(#d1d9e0b3, #21262d);
+  --border-subtle:   light-dark(rgba(31, 35, 40, 0.08), rgba(240, 246, 252, 0.1));
+  --border-strong:   light-dark(#8c959f, #484f58);
+  --border-emphasis: light-dark(#8c959f, #8b949e);
+
+  --text-primary:   light-dark(#1f2328, #e6edf3);
+  --text-secondary: light-dark(#424a53, #c9d1d9);
+  --text-muted:     light-dark(#59636e, #8b949e);
+  --text-bright:    light-dark(#1f2328, #f0f6fc);
+
+  --accent-blue:            light-dark(#0969da, #58a6ff);
+  --accent-blue-emphasis:   light-dark(#0969da, #1f6feb);
+  --accent-blue-hover:      light-dark(#0860ca, #388bfd);
+  --accent-blue-bright:     light-dark(#0550ae, #79c0ff);
+  --accent-green:           light-dark(#1a7f37, #3fb950);
+  --accent-green-emphasis:  light-dark(#1f883d, #238636);
+  --accent-yellow:          light-dark(#9a6700, #d29922);
+  --accent-yellow-bright:   light-dark(#7d4e00, #e3b341);
+  --accent-red:             light-dark(#d1242f, #f85149);
+  --accent-red-emphasis:    light-dark(#cf222e, #da3633);
+  --accent-red-bright:      light-dark(#a40e26, #ff7b72);
+  --accent-purple:          light-dark(#8250df, #bc8cff);
+  --accent-orange:          light-dark(#bc4c00, #f0883e);
+
+  --tint-success-subtle:     light-dark(#dafbe1, rgba(63, 185, 80, 0.10));
+  --tint-success-muted:      light-dark(#aceebb, rgba(63, 185, 80, 0.18));
+  --tint-success-emphasis:   light-dark(rgba(26, 127, 55, 0.40), rgba(63, 185, 80, 0.40));
+  --tint-attention-subtle:   light-dark(#fff8c5, rgba(210, 153, 34, 0.10));
+  --tint-attention-muted:    light-dark(#f8e3a1, rgba(210, 153, 34, 0.18));
+  --tint-attention-emphasis: light-dark(rgba(154, 103, 0, 0.40), rgba(210, 153, 34, 0.40));
+  --tint-danger-subtle:      light-dark(#ffebe9, rgba(248, 81, 73, 0.10));
+  --tint-danger-muted:       light-dark(#ffcecb, rgba(248, 81, 73, 0.18));
+  --tint-danger-emphasis:    light-dark(rgba(209, 36, 47, 0.40), rgba(248, 81, 73, 0.40));
+  --tint-accent-subtle:      light-dark(#ddf4ff, rgba(88, 166, 255, 0.10));
+  --tint-accent-muted:       light-dark(#b6e3ff, rgba(88, 166, 255, 0.18));
+  --tint-accent-emphasis:    light-dark(rgba(9, 105, 218, 0.40), rgba(88, 166, 255, 0.40));
+  --tint-neutral-subtle:     light-dark(#eaeef2, rgba(139, 148, 158, 0.10));
+  --tint-neutral-muted:      light-dark(#d0d7de, rgba(139, 148, 158, 0.18));
+
+  --shadow-color-sm:    light-dark(rgba(31, 35, 40, 0.10), rgba(0, 0, 0, 0.25));
+  --shadow-color-md:    light-dark(rgba(140, 149, 159, 0.30), rgba(0, 0, 0, 0.35));
+  --shadow-color-lg:    light-dark(rgba(140, 149, 159, 0.40), rgba(0, 0, 0, 0.50));
+  --shadow-sm: 0 1px 2px var(--shadow-color-sm);
+  --shadow-md: 0 4px 12px var(--shadow-color-md);
+  --shadow-lg: 0 8px 24px var(--shadow-color-lg);
+  --ring-focus: 0 0 0 2px var(--tint-accent-muted);
+
+  /* Theme-invariant: white on a saturated fill. */
+  --text-on-emphasis: #ffffff;
+  --border-on-emphasis: rgba(255, 255, 255, 0.15);
+
+  --space-2xs: 2px; --space-xs: 4px; --space-sm: 8px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 32px; --space-2xl: 48px;
+  --gutter: clamp(12px, 1.6vw, var(--space-lg));
+  --header-height: 49px;
+
+  --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; --radius-full: 9999px;
+  --radius: var(--radius-md);
+
+  --font-sans-stack: 'Inter Variable', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono-stack: ui-monospace, 'Cascadia Code', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- shadcn semantic variables, mapped onto the tokens above ---- */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-surface-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-blue-emphasis);
+  --primary-foreground: var(--text-on-emphasis);
+  --secondary: var(--bg-surface-hover);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--bg-inset);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--bg-surface-hover);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--accent-red-emphasis);
+  --border: var(--border-muted);
+  --input: var(--border-default);
+  --ring: var(--accent-blue);
+  --chart-1: var(--accent-blue);
+  --chart-2: var(--accent-green);
+  --chart-3: var(--accent-yellow);
+  --chart-4: var(--accent-red);
+  --chart-5: var(--accent-purple);
+  --sidebar: var(--bg-surface);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-blue-emphasis);
+  --sidebar-primary-foreground: var(--text-on-emphasis);
+  --sidebar-accent: var(--bg-surface-hover);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-muted);
+  --sidebar-ring: var(--accent-blue);
+}
+
+/* The toggle writes data-theme on <html> (and the .dark class for Tailwind's
+   dark: utilities). An absent attribute follows the OS. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-canvas);
+    /* A row focused from below is scrolled in under the sticky app bar
+       (WCAG 2.4.11). The layout keeps --header-height current. */
+    scroll-padding-top: calc(var(--header-height) + var(--space-sm));
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans-stack);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  a { color: var(--accent-blue); text-decoration: none; }
+  a:hover { color: var(--accent-blue-bright); text-decoration: underline; }
+  code { font-family: var(--font-mono-stack); font-size: 0.9em; }
+}
+
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+.container { max-width: 1240px; margin: 0 auto; padding-inline: var(--gutter); min-width: 0; }
+
+.page-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--space-sm) var(--space-md); margin-bottom: var(--space-lg);
+}
+.page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; min-width: 0; }
+/* The title receives focus programmatically after navigation so screen
+   readers announce the page; it is not a control, so no ring. */
+.page-title:focus, .page-title:focus-visible, #main:focus { outline: none; }
+.page-title .count { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); margin-left: var(--space-sm); }
+.page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+
+.section-title { font-size: 1rem; font-weight: 600; margin: 0 0 var(--space-sm); }
+.section-title .count { font-size: 0.85rem; font-weight: 400; color: var(--text-muted); margin-left: var(--space-xs); }
+
+/* ==========================================================================
+   App bar (DESIGN.md §6): brand left, underline tabs centred on the window,
+   the account and theme on the right. Under 900px the tabs take their own row.
+   ========================================================================== */
+.app-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-muted);
+  padding: 10px 0;
+  position: sticky; top: 0; z-index: 10;
+}
+.app-header-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-xl);
+}
+.app-header-left { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.app-header-center { justify-self: center; }
+.app-header-right { justify-self: end; display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; }
+@media (max-width: 900px) {
+  .app-header-bar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "left right" "center center"; row-gap: var(--space-xs); }
+  .app-header-left { grid-area: left; }
+  .app-header-right { grid-area: right; }
+  .app-header-center { grid-area: center; justify-self: start; }
+}
+.app-header-title { color: var(--text-primary); font-weight: 600; font-size: 0.95rem; white-space: nowrap; text-decoration: none; }
+.app-header-title:hover { color: var(--accent-blue); text-decoration: none; }
+.app-header-brand { display: inline-flex; align-items: center; gap: var(--space-sm); }
+.header-logo { height: 24px; width: 24px; object-fit: contain; display: inline-block; }
+.hero-logo { height: 56px; width: 56px; margin: 0 auto var(--space-sm); display: block; }
+.login-title { font-size: 1.1rem; font-weight: 600; margin: 0; }
+.login-utilities { position: absolute; top: var(--space-sm); right: var(--gutter); }
+.app-header-build { color: var(--text-muted); font-size: 0.65rem; font-family: var(--font-mono-stack); white-space: nowrap; }
+
+/* Primer underline tabs (§1.4). */
+.app-header-switch { display: inline-flex; align-items: center; gap: var(--space-2xs); flex-wrap: wrap; }
+.primer-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;
+  padding: 4px 8px; cursor: pointer; white-space: nowrap; text-decoration: none;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.primer-tab:hover { color: var(--text-primary); border-bottom-color: var(--border-default); text-decoration: none; }
+.primer-tab.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--accent-orange); }
+
+.skip-link {
+  position: absolute; left: -999px; top: var(--space-sm); z-index: 50;
+  background: var(--bg-surface); color: var(--text-primary); padding: 6px 10px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+}
+.skip-link:focus { left: var(--space-sm); }
+
+/* padding-block only: the shorthand would wipe .container's gutter (DESIGN.md §2). */
+.page-foot { color: var(--text-muted); font-size: 0.78rem; padding-block: var(--space-lg); }
+
+/* ==========================================================================
+   Buttons (DESIGN.md §3) - restyled over shadcn's data-slot/data-variant.
+   default = .btn-primary, secondary/outline = .btn-secondary, ghost, destructive
+   = .btn-danger, link; plus the danger-outline variant via a class.
+   ========================================================================== */
+[data-slot="button"],
+[data-slot="alert-dialog-action"],
+[data-slot="alert-dialog-cancel"] {
+  height: auto;
+  padding: 5px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  gap: 6px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transform: none;
+}
+[data-slot="button"]:hover:not(:disabled), [data-slot="alert-dialog-cancel"]:hover:not(:disabled) { background: var(--bg-btn-hover); border-color: var(--border-emphasis); color: var(--text-bright); }
+[data-slot="button"]:active:not(:disabled) { background: var(--bg-btn-active); transform: none; }
+[data-slot="button"]:disabled, [data-slot="alert-dialog-action"]:disabled { opacity: 0.5; }
+/* Busy for a moment: stays in the Tab order (DESIGN.md §3) and keeps focus. */
+[data-slot="button"][aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+[data-slot="button"]:focus-visible, [data-slot="alert-dialog-action"]:focus-visible, [data-slot="alert-dialog-cancel"]:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; box-shadow: none; }
+
+/* The delete confirmation: Keep is secondary, the action is the solid danger
+   button (§6: the destruction is the point of that dialog). Radix gives these
+   their own data-slot, so they are named here beside the button rules. */
+[data-slot="alert-dialog-cancel"] { background: var(--bg-surface-hover); border-color: var(--border-default); color: var(--text-secondary); }
+[data-slot="alert-dialog-action"] { background: var(--accent-red-emphasis); border-color: var(--border-on-emphasis); color: var(--text-on-emphasis); font-weight: 600; }
+[data-slot="alert-dialog-action"]:hover:not(:disabled) { background: var(--accent-red); color: var(--text-on-emphasis); }
+
+[data-slot="button"][data-variant="default"] { background: var(--accent-blue-emphasis); border-color: var(--border-on-emphasis); color: var(--text-on-emphasis); font-weight: 600; }
+[data-slot="button"][data-variant="default"]:hover:not(:disabled) { background: var(--accent-blue-hover); border-color: var(--border-on-emphasis); color: var(--text-on-emphasis); }
+
+[data-slot="button"][data-variant="secondary"],
+[data-slot="button"][data-variant="outline"] { background: var(--bg-surface-hover); border-color: var(--border-default); color: var(--text-secondary); }
+[data-slot="button"][data-variant="secondary"]:hover:not(:disabled),
+[data-slot="button"][data-variant="outline"]:hover:not(:disabled) { background: var(--bg-btn-hover); border-color: var(--border-emphasis); color: var(--text-bright); }
+
+[data-slot="button"][data-variant="ghost"] { background: transparent; border-color: transparent; color: var(--text-secondary); }
+[data-slot="button"][data-variant="ghost"]:hover:not(:disabled) { background: var(--overlay-muted); border-color: transparent; color: var(--text-primary); }
+
+[data-slot="button"][data-variant="destructive"] { background: var(--accent-red-emphasis); border-color: var(--border-on-emphasis); color: var(--text-on-emphasis); font-weight: 600; }
+[data-slot="button"][data-variant="destructive"]:hover:not(:disabled) { background: var(--accent-red); color: var(--text-on-emphasis); }
+[data-slot="button"].btn-danger-outline { background: transparent; border-color: var(--tint-danger-emphasis); color: var(--accent-red); }
+[data-slot="button"].btn-danger-outline:hover:not(:disabled) { background: var(--tint-danger-subtle); border-color: var(--accent-red); color: var(--accent-red-bright); }
+
+[data-slot="button"][data-variant="link"] { background: transparent; border-color: transparent; color: var(--accent-blue); padding: 0; }
+[data-slot="button"][data-variant="link"]:hover:not(:disabled) { background: transparent; color: var(--accent-blue-bright); text-decoration: underline; }
+
+/* min-height keeps row and toolbar buttons at the 24 px target (WCAG 2.5.8). */
+[data-slot="button"][data-size="xs"] { padding: 2px 7px; font-size: 0.75rem; border-radius: var(--radius-xs); min-height: 24px; }
+[data-slot="button"][data-size="sm"] { padding: 3px 9px; font-size: 0.8rem; min-height: 26px; }
+[data-slot="button"][data-size="lg"] { padding: 8px 18px; font-size: 0.95rem; }
+[data-slot="button"][data-size="icon"],
+[data-slot="button"][data-size="icon-sm"],
+[data-slot="button"][data-size="icon-xs"] { width: 28px; height: 28px; padding: 0; }
+
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+[data-slot="input"] {
+  height: auto;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  transition: border-color var(--transition-fast);
+}
+[data-slot="input"]:focus-visible { border-color: var(--accent-blue); outline: none; box-shadow: var(--ring-focus); }
+/* A search box in the page header sits on the canvas, not on a surface, so
+   it needs its own tonal step and a boundary that reaches 3:1 there. */
+.page-head [data-slot="input"] { background: var(--bg-surface); border-color: var(--border-strong); }
+[data-slot="input"][aria-invalid="true"] { border-color: var(--accent-red); box-shadow: 0 0 0 2px var(--tint-danger-muted); }
+[data-slot="label"] { font-weight: 500; font-size: 0.9rem; color: var(--text-secondary); }
+.form-hint { display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.field-error-msg { color: var(--accent-red); font-size: 0.85rem; margin-top: 4px; min-height: 1.2em; }
+.form-measure { max-width: 640px; }
+
+/* ==========================================================================
+   Cards (§1.1: a surface over the canvas, one border, never nested)
+   ========================================================================== */
+[data-slot="card"] {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  --tw-ring-shadow: 0 0 transparent;
+  gap: var(--space-md);
+  padding-block: var(--space-lg);
+  --card-spacing: var(--space-lg);
+}
+[data-slot="card"]:hover { border-color: var(--border-default); }
+[data-slot="card-title"] { font-size: 0.95rem; font-weight: 600; }
+[data-slot="card-description"] { font-size: 0.82rem; color: var(--text-muted); }
+
+/* A summary tile: a label and a number. */
+.summary-card { padding: var(--space-md); display: flex; flex-direction: column; gap: 2px; }
+.summary-card .stat-label { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); }
+.summary-card .stat-value { font-size: 1.6rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.summary-card .stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+.summary-grid { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: var(--space-lg); }
+
+/* ==========================================================================
+   Status dots (§1.3, §4) - never pill badges in tables.
+   ========================================================================== */
+.status-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 500; color: var(--text-secondary); white-space: nowrap; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); display: inline-block; }
+.status-dot.dot-success { background: var(--accent-green); box-shadow: 0 0 6px var(--tint-success-emphasis); }
+.status-dot.dot-warning { background: var(--accent-yellow); box-shadow: 0 0 6px var(--tint-attention-emphasis); }
+.status-dot.dot-danger  { background: var(--accent-red); box-shadow: 0 0 6px var(--tint-danger-emphasis); }
+.status-dot.dot-info    { background: var(--accent-blue); box-shadow: 0 0 6px var(--tint-accent-emphasis); }
+.status-dot.dot-neutral { background: var(--text-muted); }
+
+/* ==========================================================================
+   Tables (the row-per-record table, inside its own scroller)
+   ========================================================================== */
+[data-slot="table-container"] { overflow-x: auto; max-width: 100%; contain: paint; border: 1px solid var(--border-muted); border-radius: var(--radius-md); background: var(--bg-surface); }
+[data-slot="table"] { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+[data-slot="table-head"], [data-slot="table-cell"] { padding: var(--space-sm) var(--space-md); text-align: left; vertical-align: middle; height: auto; }
+[data-slot="table-head"] {
+  font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--text-secondary); background: var(--bg-inset); white-space: nowrap;
+}
+/* On a phone the first column stays put while the rest scrolls, so a row
+   keeps its name (NN/g mobile tables). */
+@media (max-width: 720px) {
+  [data-slot="table-head"]:first-child, [data-slot="table-cell"]:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); box-shadow: inset -1px 0 0 var(--border-muted); }
+  [data-slot="table-head"]:first-child { background: var(--bg-inset); }
+}
+[data-slot="table-row"] { border-bottom: 1px solid var(--border-muted); }
+[data-slot="table-row"]:hover { background: var(--bg-surface-hover); }
+[data-slot="table-body"] [data-slot="table-row"]:last-child { border-bottom: none; }
+[data-slot="table-caption"] { margin: 0; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.col-actions { width: 1%; text-align: right !important; white-space: nowrap; }
+.mono { font-family: var(--font-mono-stack); font-size: 0.85em; }
+.cell-truncate { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-muted { color: var(--text-muted); }
+
+/* ==========================================================================
+   States
+   ========================================================================== */
+.empty-state { text-align: center; padding: var(--space-2xl) var(--space-md); color: var(--text-secondary); background: var(--bg-surface); border-radius: var(--radius-md); }
+.empty-state p { margin: 0; }
+.empty-state .empty-title { font-weight: 500; color: var(--text-primary); }
+.empty-state .empty-body { margin-top: var(--space-xs); font-size: 0.88rem; }
+.empty-state .empty-actions { margin-top: var(--space-md); }
+
+/* "Where something stands" box (§4): a tonal step off the canvas, a dot, a
+   sentence and its way forward. Tinted when it needs a look. */
+.status-box { display: flex; gap: var(--space-md); align-items: flex-start; padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg-surface); margin-bottom: var(--space-md); }
+.status-box.tone-warning { background: var(--tint-attention-subtle); }
+.status-box.tone-danger { background: var(--tint-danger-subtle); }
+.status-box > .status-dot { margin-top: 7px; }
+.status-box-body { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; flex: 1; font-size: 0.9rem; }
+.status-box-body p { margin: 0; }
+.status-box-title { font-weight: 600; }
+.status-box-actions { display: flex; gap: var(--space-sm); align-items: center; margin-top: var(--space-xs); }
+
+[data-slot="skeleton"] { background: var(--bg-surface-hover); border-radius: var(--radius-sm); }
+
+/* Settings: one row per setting - what it is, its value, what to do with it.
+   A surface over the canvas with row dividers; never a box per setting. */
+.settings { background: var(--bg-surface); border: 1px solid var(--border-muted); border-radius: var(--radius-md); }
+.settings-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: var(--space-sm) var(--space-lg); align-items: center;
+  padding: var(--space-md); border-bottom: 1px solid var(--border-muted);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-label { display: flex; flex-direction: column; gap: 2px; font-weight: 500; }
+.settings-label small { font-weight: 400; font-size: 0.8rem; color: var(--text-muted); }
+.settings-value { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); min-width: 0; }
+.settings-value code { font-size: 0.9rem; }
+.settings-actions { display: flex; gap: var(--space-sm); justify-self: end; }
+.settings-edit { grid-column: 2 / -1; display: flex; flex-direction: column; gap: var(--space-xs); max-width: 640px; }
+.settings-edit .settings-actions { justify-self: start; margin-top: var(--space-xs); }
+@media (max-width: 720px) {
+  .settings-row { grid-template-columns: minmax(0, 1fr); }
+  .settings-actions { justify-self: start; }
+  .settings-edit { grid-column: 1; }
+}
+
+/* ==========================================================================
+   Dialogs (§6): surface, strong border, title and buttons stay, body scrolls.
+   ========================================================================== */
+[data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"] { background: var(--bg-scrim); backdrop-filter: blur(4px); }
+[data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  --tw-ring-shadow: 0 0 transparent;
+  padding: var(--space-md) 18px;
+  max-width: min(520px, calc(100% - 2rem));
+  max-height: calc(100vh - 2rem);
+  gap: var(--space-md);
+}
+/* Head and foot stay, only what is between them scrolls (§6). */
+[data-slot="dialog-header"], [data-slot="alert-dialog-header"] { text-align: left; place-items: start; border-bottom: 1px solid var(--border-muted); padding-bottom: var(--space-sm); }
+[data-slot="dialog-title"], [data-slot="alert-dialog-title"] { font-size: 1rem; font-weight: 600; }
+[data-slot="dialog-description"], [data-slot="alert-dialog-description"] { font-size: 0.88rem; color: var(--text-secondary); }
+[data-slot="dialog-footer"], [data-slot="alert-dialog-footer"] { border-top: 1px solid var(--border-muted); padding-top: var(--space-md); margin-top: var(--space-xs); gap: var(--space-sm); flex-direction: row; justify-content: flex-end; }
+.dialog-body { overflow-y: auto; min-height: 0; }
+
+/* Toasts: the surface and the palette, not the library's. */
+[data-sonner-toast] { font-family: var(--font-sans-stack); }
+
+/* Switch (Health auto-refresh): accent when on, a 3:1 track when off (1.4.11). */
+[data-slot="switch"][data-state="checked"] { background: var(--accent-blue-emphasis); }
+[data-slot="switch"][data-state="unchecked"] { background: var(--border-strong); }
+[data-slot="switch-thumb"] { background: var(--text-on-emphasis); }
+
+/* Recharts text */
+.recharts-text { fill: var(--text-muted); font-size: 0.75rem; }
+.recharts-cartesian-grid line { stroke: var(--border-muted); }

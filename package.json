@@ -1,0 +1,21 @@
+{
+  "name": "microshort2-integration-tests",
+  "version": "0.1.0",
+  "description": "Black-box integration tests for the microshort 2 stack",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "docker compose up -d --build --wait",
+    "stop": "docker compose down",
+    "reset": "docker compose down -v && docker compose up -d --build --wait",
+    "logs": "docker compose logs -f",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "docker compose down -v && docker compose up -d --build --wait && vitest run",
+    "test:rate": "vitest run -c vitest.rate.config.js",
+    "test:e2e:rate": "docker compose -f compose.yml -f compose.test.override.yml down -v && docker compose -f compose.yml -f compose.test.override.yml up -d --build --wait && vitest run -c vitest.rate.config.js"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,18 @@
+# web — request examples for the VS Code REST Client / JetBrains HTTP Client
+@web = http://localhost:3001
+
+### Dashboard entry page (always revalidated)
+GET {{web}}/
+
+### Runtime config injected for the browser (API_BASE_URL)
+GET {{web}}/config.js
+
+### Vendored libraries (no CDN)
+GET {{web}}/vendor/van.min.js
+
+### Ops
+GET {{web}}/health
+###
+GET {{web}}/ready
+###
+GET {{web}}/metrics

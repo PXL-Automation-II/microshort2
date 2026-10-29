@@ -1,0 +1,782 @@
+# Design system for the microshort 2 dashboard
+
+> **Provenance.** The text below is the PXL Classroom design system
+> (`pxl-classroom/DESIGN.md`), copied unchanged on 2026-10-28 because the
+> microshort 2 dashboard is to look and behave like the other PXL tools:
+> a dense, calm, GitHub Primer-like interface. The tokens in §2 and the
+> component vocabulary in §3-§6 are implemented in `src/index.css`.
+>
+> **What applies here, and how.** The dashboard is React + shadcn/ui rather
+> than Vue, so:
+>
+> - §1 (principles), §2 (tokens), §3 (buttons), §4 (status dots), §5
+>   (theming) and §6's rules on the app bar, dialogs and confirmations apply
+>   in full. The tokens are declared once in `src/index.css` with
+>   `light-dark()`, and shadcn's semantic variables (`--background`,
+>   `--primary`, ...) are mapped onto them, so every library component follows
+>   the palette. Buttons, inputs, cards, tables and dialogs are restyled
+>   through their `data-slot` attributes; the shadcn variants map to the §3
+>   set (`default` = primary, `secondary`/`outline` = secondary, `ghost`,
+>   `destructive` = danger, `.btn-danger-outline`).
+> - The theme toggle has two states (§5): `public/theme-boot.js` applies the
+>   stored choice before paint; nothing stored follows the OS.
+> - §1.5-§1.9 (truthful UI, no repository references, labels, forms, one
+>   question) are rules of writing and apply to every screen here.
+> - §6's Vue specifics (`AppHeader.vue`, `AuthCard.vue`, scoped styles, the
+>   confirm service) and §7-§8 (Vue scoped-style vocabulary, the sandbox route)
+>   do not apply; their intent is met by shadcn's `AlertDialog` (buttons named
+>   for the outcome, Cancel focused for a destructive action) and by React's
+>   component model.
+> - Classroom's own review history inside the sections is kept as context;
+>   file names in it refer to that repository.
+
+---
+
+# PXL Classroom - Design System & Visual Guidelines
+
+This document outlines the core UI/UX design principles and tokens for **PXL Classroom**. It ensures the interface maintains a human-crafted, high-density developer aesthetic (inspired by GitHub Primer) and avoids generic "AI-generated template" defaults.
+
+---
+
+## 1. Core Visual Principles
+
+1. **Avoid the "1px Box Prison":**  *(a box is a border on all four sides; a single-side border is a divider and is fine)*
+   * Do not wrap every nested container in a 1px solid border.
+   * Separate sections using **tonal surface shifts** (`--bg-canvas` vs `--bg-surface`) and purposeful whitespace (16-24px padding).
+   * Reserve borders for structural dividers (such as sticky headers, navigation borders, or data table rows).
+   * Concretely: **never nest three boxes**. A modal that outlines its own edge, its cards, and a control inside those cards is the prison. Give the inner levels a tonal step instead.
+   * Check the tone actually differs in **both** themes before removing a border. `--bg-surface` and `--bg-surface-elevated` are both `#ffffff` in light (§2), so an "elevated" panel on a white modal has a contrast ratio of exactly 1.000. `--bg-inset` is the recessed step that differs in both.
+
+2. **Strict 1-Primary-Button Rule:** *(enforced by `tests/e2e/22-design-conformity.spec.mjs`)*
+   * **Only ONE** solid primary button (`.btn-primary`) per view or major screen section (e.g., `+ New assignment` on Dashboard, the `Invite link` popover trigger on an assignment's Progress, Teams and Grading tabs).
+   * Standard toolbar actions (`Refresh`, `Export`, `Sync`) must use neutral secondary styling (`.btn-secondary`).
+   * Destructive actions (`Stop accepting`, `Lock everyone out now`, `Delete`) live in a menu, never as a bare button: an assignment's lifecycle is its **state button** (`AssignmentHeader.vue`, the menu under the state at the top of every tab), with the destructive entries last and marked, each confirmed in a dialog. Elsewhere a `··· More` overflow dropdown or a subtle danger outline.
+   * A **modal counts as its own view**. An action repeated per row or per card is never primary - one card per assignment meant one primary button per assignment before this was caught.
+   * **A form does not repeat its actions.** `AdminView`'s editor rendered `Cancel / Save as draft / Save & publish` in its header bar *and* again below the fieldsets - two solid buttons on screen at once, which is why the conformity test was scoped away from that view for two workstreams. There is one action row, and since 2026-10-03 it is a bar stuck to the bottom of the window (`.editor-action-bar`), so Save is reachable from the last section without scrolling back up and does not compete with the assignment's header above the form.
+   * **A shared header yields to the view it sits on, and only while it has to.** The assignment header's `Invite link` is the solid button on every tab, Settings included, until a field there is edited: then `Save` is the one thing to do and takes the solid look, and Invite link steps down (`primaryInvite`, `saveIsPrimary`). Where saving is the next step whatever was edited - a new assignment, a draft - Save holds it throughout. One at a time, on every tab, and the header does not change its look between tabs while nothing is being edited (changed on request, 2026-10-03: a header that went grey on one tab read as broken).
+
+3. **Status Dots over Bulky Pill Capsules:** *(enforced by `tests/e2e/22-design-conformity.spec.mjs`)*
+   * In data tables, student cards, and metric rows, prefer `.status-indicator` with a glowing `.status-dot` and clean mixed-case text (`● On time`, `● Repository ready`, `● Accepting`).
+   * Avoid uppercase heavy 9999px pill badges (`[ NO-SUBMISSION ]`) which add visual noise when repeated hundreds of times.
+
+4. **GitHub Primer Navigation:**
+   * Use underline tabs (`.primer-tabs` / `.primer-tab`) with an active bottom border for section switching (e.g., `Assignments | Roster`).
+   * Avoid floating pill toggle bubbles for top-level navigation.
+
+5. **The UI must not describe behaviour the system does not have.**
+   * A control that cannot do what its label says, a status line reporting a state nothing computes, a message promising a background process that was deleted - each is worse than the missing feature, because it sends someone to wait for or rely on something that will not happen.
+   * This is the most expensive class of bug this project has shipped, and it recurs in three shapes. **A dead field:** `late_policy: block` and `lock_down_enabled` were both offered in the form while no code read either. **A dead promise:** `rejected:cap-reached` ended *"Acceptance queued for lecturer review"* after the queue had been deleted, leaving a lecturer waiting instead of raising the cap. **A control that breaks what it claims to relax:** *Remove limit* offered to delete the only thing gating an `open` cohort, which stops every acceptance rather than opening enrolment up.
+   * The remedy is one of two things, never a reword: give the system the behaviour, or take the control away and say why. An absent button explains nothing, so where the reason matters it replaces the control rather than simply vanishing.
+   * It applies equally to a status line that cannot evaluate its own condition. `InvitationShare` could never report "Cap reached", because two of its three callers never passed the count - so it announced *"Live"* over a full cohort. An absent input is now **unknown**, and the copy hedges rather than asserting.
+   * **A status line may also answer a narrower question than the screen is asking.** The assignment form read *"Automatic grading: Off · submissions are not scored automatically"* beside a filled-in hand-in commit message. "Off" was true of checks configured *here*; the sentence beside it was a claim about the student's repository the form has no way to check, and false for exactly the assignment that field exists for. Rewording it would not have helped: checks defined here and a workflow shipped with the template are two answers to **one** question, held as two unrelated controls. One question, asked once, in one place - and where two states are genuinely the same document, the line says the less specific thing rather than guessing which one it is.
+   * A page may not guess *why* it is stuck, either: the provisioning wait screen offered a repository-invitation link on a timer, with no evidence and to students who had never been sent one.
+   * **A status that lives only in the tab that saw it happen is not a status.** Saving a published assignment said *"Students see this change in about two minutes"* in a toast that vanished, and a refresh said nothing at all; publishing said its step in one line at the top while the lecturer was at the bottom, after three seconds with no sign the press had registered. A status is worked out from facts each time it is shown - the page students open against what is saved (`lib/student-page-status.js`) - so it is the same after a refresh and on every tab. A wait says which step of how many and how long it usually takes, measured; the press says what it is doing at once, where it was pressed; and a failure stays on screen with its way out, never only in a toast.
+   * **A filter styled like a selection is a lie the user tells themselves.** The cohort picker's class chips fill solid accent - `.chip-btn.active`, the same treatment a chosen thing gets - and leave exactly that class on screen with every checkbox empty. It reads as *"this assignment is for 1TIN-A"* while the assignment is still open to the whole roster, and the only contradiction is a count in the far corner. Taking the class *was* possible in two clicks, via a small generic link below the list; being possible is not the point. The remedy is the control, not the wording: a select-all checkbox at the head of the list, naming what it will take (*Select all 20 in 1TIN-A*), and the state said out loud where it is true - **"showing 1TIN-A, but nothing is selected yet"** - rather than left to a number. And where a filter and a search would compose into an empty list, the filter stands down visibly instead of silently returning nothing.
+   * **The inverse costs as much: a control that renders only once its feature is already in use is invisible.** The **Class groups** picker required a `class_group` on the roster before it would appear, and measured on 2026-09-05 not one student in any live organization had one - so the control had never rendered anywhere, and a lecturer asking how to split their classes across assignments had nothing on screen to find. Two fixes were available and only one of them was real. Showing the empty field with a message about the missing column makes the feature discoverable but still asks the lecturer to go and prepare data before the control does anything. The **question was the wrong shape**: the assignment was made to hold a *rule over groups* when what a lecturer wanted was to *choose students*. Replacing it with a roster picker whose group chips are only filters removed the precondition entirely - nothing has to exist before the control works, and the groups became what they were always described as. Prefer the change that removes the precondition over the message that explains it.
+
+6. **The UI never points a user at this repository's documentation.** *(enforced by `tests/doc-refs.test.mjs`)*
+   * `RUNBOOK.md`, `ADMIN.md` and `INSTALL.md` are written for whoever *operates* a deployment. A student who cannot sign in and a lecturer whose dashboard will not load are not that person - they cannot act on a section number, and often the procedure behind it is not theirs to run. "Run ADMIN.md §5.5 recovery" told a lecturer to `git reset --hard` a repository they may not be able to write to.
+   * The worst instance was on the **sign-in card**, which is the one sign-in surface and therefore the one a *student* meets: a misconfigured deployment answered them by naming a build-time secret and an ARCHITECTURE section.
+   * A message says **what happened and who can fix it.** If the reader genuinely needs the procedure, give the steps - the `/setup` page lists them inline, because the person reading it is the operator.
+   * Section numbers are a maintainer's index and they move; three documents' worth were renumbered in one afternoon, silently breaking four links the UI had composed by hand.
+   * **Developer comments are exempt, deliberately.** `// ARCHITECTURE §4.3.2` beside the code it constrains is how the reasoning stays attached to the code, and the guard strips comments before it looks.
+
+7. **A stored value is not a label, and a column heading is not repeated in its cells.** *(enforced by `tests/status-labels.test.mjs`)*
+   * `{{ s.submission_status }}` put `no-submission` on screen; `{{ s.acceptance_state }}` put `provisioned` there, a word only this codebase uses. Both read as machine output because they are. Every field with an enum gets a label map in `frontend/src/lib/status-labels.js`, its values are checked against the schema by a test, and an unknown value **falls back to itself** - an unlovely word beats a blank cell, which reads as "nothing to report" about a student the system has plenty to say about.
+   * **Display only.** `lib/report-csv.mjs` exports the raw values and that column list is a contract with its own guard. The data keeps its words; the screen gets ours.
+   * **The heading already asks the question, so the cell answers it.** A GitHub Account column whose empty cell said `Pending linking` invented a noun for a state, and read as something in progress when nothing was; a dash says the same thing and needs no glossary. An account column that also said `No address` was answering the Email column's question one column to its left - two columns, one fact, two vocabularies.
+   * **A picker and a table may name the same row differently, and that is not a fork.** The cohort picker leads each row with name → email → login, dropping any column no row fills, because its only job is *recognise this person and tick them*. The Roster tab keeps its columns and says `Name unknown` beside an address, because its job is *see what is missing and fill it in* - a column that vanished when empty would hide the very gap the lecturer is there to close. Same data, different question, so the answers differ on purpose; do not unify them on the grounds that they disagree. (Same shape as §7's rule that identical names over different constants are not a fork.) The Teams tab names a member by their **email address** where one is known - the roster's, else the one they confirmed - with name, number and username in the title, and `@username` only where there is no address (asked 2026-10-05): a lecturer knows students by address, rarely by GitHub username. Its pickers keep name and username, by the rule above.
+   * **Name what happens to the reader, not the record that was written.** `Unlink` describes our data; a lecturer read `Remove GitHub account` as deleting the student's actual account. **Forget this account** says we stop knowing, which is what it does.
+   * **"Grade" starts a grading run; "read" reads results that exist.** *Re-grade all 23* started no run: it read the results of runs that had already happened and applied the rules again, and a lecturer reads "re-grade" as "run the tests again" - which in many setups nothing can do. It is **Read all scores again** now, the per-student dialog is **Choose the commit that counts**, and only the two actions that really start a run on GitHub say so (*Start a grading run on this commit*, *Re-run its grading on GitHub*), each offered only where the student's workflow allows it. `tests/grading-words.test.mjs` refuses "re-grade" in visible text.
+   * Nuance a reader only needs when deciding whether to trust something belongs in the `title`, not in the cell.
+     **One exception, decided 2026-09-30:** the student table's *Confirmed address* cell keeps *GitHub-verified* / *Typed by the student* on screen, under the address. Under open enrolment that column is the only place a claim is shown at all, so whether it was checked is what the column is for, not a detail of it. It sits on a second line rather than beside the address, which is what kept it from widening the table (§7).
+   * Two exemptions, and they are narrow. A surface whose *subject* is the machinery may name it - `SystemHealthModal` diagnoses brokers and workflow dispatches and cannot report on what it may not name. `/setup` is read by whoever operates a deployment, per rule 6 above. Neither licenses a lecturer-facing table.
+   * **The control repository** may be named on a lecturer's screen. It is not one of this codebase's words: it is a real repository in their organization, made by setup and linked by that name on the Organization tab, so it is somewhere they can open. A student page does not name it.
+
+8. **A value the form worked out is stated, not asked for - and the fields go in the order the values derive.** *(`tests/e2e/67-new-assignment-order.spec.mjs`)*
+   * The new-assignment form asked for a Title, a Slug and a Description, and only then - in a second fieldset - which template to copy. The data had always flowed the other way: the template's repository name fills the Title, the Title fills the slug, the slug fills the repository name pattern. **The layout and the logic disagreed, and the layout won.** Each prefill is conditional on the field being empty, correctly, so that it never stamps on something typed - and a lecturer working down the form typed the Title first. The prefill was real, tested, and unreachable for anyone following the form's own order. A form whose fields are not in derivation order is a form whose prefills are decorative.
+   * **An input box asks a question.** The slug is derived, is locked after creation, and is not in the student's invitation link - so it is rendered as a line of text with an **Edit** beside it, not as a box. A disabled input says the same thing while still looking like somewhere a value goes. What makes it worth showing at all is that it names something real (the acceptance repository students open); a derived value nothing outside the system ever sees does not need to be on screen at all.
+   * **Bound the COLUMN, not each control.** *(this replaces a rule written earlier the same day, and the correction is the lesson)* Capping controls individually - 46ch for most, 64ch for the template picker - produced **three** widths on one screen: 353px inputs, a 518px picker, and help text still running the full 908px, because a `<small>` is not an input. Neither uniform nor meaningful, and reported as *"terrible"*. The `<small>` under a field being twice the width of the field is most of what reads as mess. Give the form one `max-width` and let every control fill it: one left edge, one right edge, and the prose lands on the same measure. Pick the number for the TEXT - 640px is ~90 characters at 14px, against the ~110 a full pane gives - then check the longest thing a control must display still fits.
+   * **The width beside the measure goes to a list of the form's sections, not to the form.** On the assignment's Settings tab the 640px column sat on a page twice its width, reported 2026-10-03 as *"why so narrow?"*. Widening the column is the answer this rule exists to refuse; the page's spare width holds a sticky list of the sections instead (`.settings-nav`, GitHub's own settings layout), which jumps to each one and lights the one on screen in the tabs' orange. A section asked for stays lit until the lecturer scrolls, because one near the end cannot reach the top of the window. Under 960px there is no width to give it and it is not shown. And a long form is not folded away to make it shorter: the *Edit settings* fold on a published assignment was one more click in front of the only thing the tab is for, and went the same day.
+   * **Whether what is on screen is saved is said, and only when it is not.** A form kept mounted across tabs holds edits nobody can see from the other tabs, and "Draft" is not the answer to "is this saved?" - a draft is a saved assignment students cannot open yet. While edits are waiting, the action bar says *Unsaved changes* and the Settings tab carries a yellow dot (and "(unsaved changes)" for a screen reader); a new assignment's bar says *Not saved yet*. A saved form says nothing: a standing *All changes saved* is a sentence on screen for the case that needs none. The dot is `.status-dot dot-warning` (§1.3), not a new badge.
+   * **A pair that is read together may share a row, and that is not an exception to the measure.** Opens at and Deadline are read as one thing and are fixed-length, so a full-width box for `21/09/2026 03:15` overstates them (Baymard's first rule: size a fixed-length input to its content). Side by side they still end on the column's right edge. Use `minmax(0, 1fr)` for the tracks, never a bare `1fr` (§7), or a long validation message under one date pushes the row wider than the column instead of wrapping in its half.
+   * **A rare option goes under Advanced, and says it is on where it applies.** *Give students every branch and its full history* was asked for once (2026-10-14), so it does not sit between the template and the Title on every new assignment, where it also broke the derivation order above. But Advanced is a closed disclosure, and a setting that is on and folded away is invisible to the next person to open the assignment: while it is on, one line under the template says so, with **Change**, which opens Advanced on it - the same shape as the derived values above. The box sits beside the field whose hint it changes (*Submission ref*), and that hint says what is true with it on.
+   * **Order blocks by what gets touched, not by what is conceptually first.** Assignment Type sat above Schedule; the collaboration model is chosen once and almost never changed, while the dates differ on every single assignment.
+   * **Where a verdict is rendered follows what it is about.** The collision check's findings sat under the slug because the slug was the field a lecturer looked at while choosing a name. Demoting the slug inverted that, and the pattern was always the actual collision key. A verdict rendered beside the wrong field is a verdict about a field the reader is not editing.
+
+9. **Ask the question the reader is asking. Two stored fields are not two questions, and one field is not one question.** *(`tests/e2e/29-late-policy-control.spec.mjs`)*
+   * *(added at the end rather than beside rule 5, which it is closest to, because §1.5 through §1.8 are cited across CLAUDE.md, the tests and the code - section numbers are a public API and renumbering one to make a list read better is not worth four broken references.)*
+   * **First version.** The deadline asked *"Late work: **Counts** / **Does not count**"* and then, as a checkbox beneath it, *"**Also** take admin away at the deadline"*, so the heaviest thing this system does to a student - taking their Actions, secrets, environments and runners - read as an intensifier of a grading setting. **Second version** (2026-09-08): two radio questions of the same shape, one per field, *what counts* and *what access is kept*.
+   * **The second version was still confusing, and the reason is the rule.** A lecturer read it on 2026-10-02 and asked whether "still counts / does not count" was about grading and the repository question about access - and it was not that clean, because `late_policy: block` *also* locks the submission branch. Each control was the shape of a stored field; neither was the shape of what a lecturer wants to decide, which is **what happens at the deadline**.
+   * **Now it is one question whose answers say what happens**: *Pushing stops* / *Nothing is locked* / *The repository becomes read-only*, each answer writing both fields (`deadlineChoice` in `AdminView.vue`). The objection that sank this merge the first time was real and is met, not dismissed: the fourth combination, read-only while late work still counts, is what both 2026 exams ran on. It is **not offered for a new assignment**, and an assignment that already holds it shows it as a fourth answer, chosen, so loading changes nothing and saving it untouched keeps it.
+   * **The same day, the other direction.** *Who may accept* was one dropdown over `roster_mode` - *Open* / *Enforced* / *Claim* - plus a checkbox (`require_claim`) shown under one of them only. One stored field, but two questions inside it: whether the roster gates, and whether the student confirms an address. They are asked as two now (*Who may accept: Anyone with the link / Only students on the roster*; *When accepting, students: confirm their email address / just click Accept*), all four corners are real modes, and the stored fields are unchanged (`whoMayAccept` / `acceptIdentity`, `tests/e2e/91-who-may-accept.spec.mjs`).
+   * The test is not "how many fields" but "can the reader predict what each answer does to a student". Where two fields compose, ask the composite; where a stored state is no longer a sensible choice, keep it representable for the documents that hold it and stop offering it.
+   * The diagnostic is still the wording: a control that begins with *Also*, *And* or *Additionally* is a modifier or a second question; a question that needs a paragraph explaining how it interacts with the next one is the wrong question.
+---
+
+## 2. Design Tokens
+
+Every token is declared once in `frontend/src/style.css` as `light-dark(<light>, <dark>)`.
+**`:root` is the only place in the codebase where a colour literal may appear** - see §5.
+
+### Surfaces & Layers
+The light ramp is **inverted** relative to dark: canvas is the grey and cards are white, so
+`--bg-surface` reads as raised above `--bg-canvas` in *both* themes and principle §1.1 holds
+without re-adding borders.
+
+| Token | Light | Dark | Usage |
+| :--- | :--- | :--- | :--- |
+| `--bg-canvas` | `#eaeef2` | `#0d1117` | Base application background |
+| `--bg-surface` | `#ffffff` | `#161b22` | Cards, panels, sticky header, table headers |
+| `--bg-surface-elevated` | `#ffffff` | `#1c2128` | Dropdown menus, modal sheets (light separates by shadow, not tone) |
+| `--bg-surface-hover` | `#f3f4f6` | `#21262d` | Button faces, table row hover, list item hover |
+| `--bg-inset` | `#f6f8fa` | `#0d1117` | `<pre>` blocks, recessed wells |
+
+### Borders
+| Token | Light | Dark | Usage |
+| :--- | :--- | :--- | :--- |
+| `--border-default` | `#d1d9e0` | `#30363d` | Prominent dividers, input borders, active controls |
+| `--border-muted` | `#d1d9e0b3` | `#21262d` | Table row dividers, card subtle outlines, tab borders |
+| `--border-subtle` | `rgba(31,35,40,.08)` | `rgba(240,246,252,.1)` | Button inner borders |
+| `--border-strong` | `#8c959f` | `#484f58` | Emphasised outlines |
+
+### Tints
+Status washes. Five hues × three steps - `subtle` (background), `muted` (filled chip),
+`emphasis` (borders, rings, dot glows), as `--tint-{success,attention,danger,accent,neutral}-{step}`.
+Dark is an alpha wash over the dark canvas; **light uses Primer's solid muted colours** - 
+a 10% wash tuned for `#0d1117` reads as nothing on white. Never hand-roll an `rgba()` status tint.
+
+**Tints are fills, not overlays.** Because the light values are opaque, painting
+one *over* content covers it - a `--tint-accent-subtle` hero glow washed the
+landing-page title out completely. Use `--glow-accent` for anything drawn on top.
+
+### Shadows
+In light mode the overlay tokens are the *only* separation an overlay gets:
+`--bg-surface` and `--bg-surface-elevated` are both `#ffffff`, so a menu on a
+card has a tonal contrast of exactly **1.000** and the shadow does all the work.
+Light shadows are therefore deliberately strong (`rgba(140,149,159,.30-.40)`),
+not the faint values a dark-first palette suggests.
+
+`light-dark()` returns a `<color>`, so it **cannot** wrap a whole `box-shadow`. Only the colour is
+themed (`--shadow-color-{sm,md,lg,modal}`); geometry is shared via `--shadow-{sm,md,lg,modal}`
+and `--ring-focus`. Writing `box-shadow: light-dark(0 4px 12px …, …)` is invalid CSS.
+
+### Typography & Radii
+* **Font Family:** `Inter`, system-ui, -apple-system, sans-serif
+* **Monospace:** `ui-monospace`, `Cascadia Code`, `Fira Code`, `Consolas`, monospace (for SHAs, repo slugs, timestamps)
+* **Corner Radii:**
+  * Inputs & Buttons: `6px` (`--radius-sm`)
+  * Cards & Modals: `8px`-`10px` (`--radius-md` / `--radius-lg`)
+  * Full circular: strictly for user avatars and status dots (`50%`)
+
+### Page gutter
+
+`--gutter: clamp(12px, 1.6vw, var(--space-lg))` is the space between the viewport
+edge and page content. **`.container` and `.app-header-bare` are its only
+consumers** - they share it so the app bar's brand lines up with the content
+below it. Do not hard-code a horizontal page padding beside them.
+
+It is fluid rather than a breakpoint step on purpose: a window snapped to half a
+desktop screen is still "desktop" to any max-width query, but the full 24px reads
+as wasted space there. The ramp is ~24px full-screen, ~15px at a 960px
+half-screen, 12px on a phone - and never 0, which is the bug it replaced.
+
+> **Do not set `padding` (the shorthand) on a `main` that also carries
+> `.container`.** Inside a `<style scoped>` block `main` is an *element* selector,
+> so it carries the component's `[data-v-*]` attribute and out-specifies
+> `.container` (0,1,1 vs 0,1,0) - `padding: X 0` silently wipes the gutter at
+> every width. Use `padding-top` / `padding-bottom`. `tests/e2e/25-responsive-layout.spec.mjs`
+> enforces both this and the ramp.
+
+---
+
+## 3. Button Hierarchy Reference
+
+```html
+<!-- 1. Primary CTA (1 per screen) -->
+<button class="btn btn-primary btn-with-icon">
+  <Icon name="plus" :size="14" />
+  <span>New assignment</span>
+</button>
+
+<!-- 2. Neutral Secondary (Toolbar & Standard Actions) -->
+<button class="btn btn-secondary btn-sm btn-with-icon">
+  <Icon name="download" :size="13" />
+  <span>Export</span>
+</button>
+
+<!-- 3. Ghost / Icon Button (Utilities) -->
+<button class="btn btn-ghost btn-icon" title="System health">
+  <Icon name="activity" :size="16" />
+</button>
+
+<!-- 4. Danger Outline (Destructive in toolbars) -->
+<button class="btn btn-danger-outline btn-sm btn-with-icon">
+  <Icon name="lock" :size="13" />
+  <span>Close acceptance</span>
+</button>
+```
+
+**The complete set**, because §1.2 forbids inventing a variant this section does not define - a rule that only works if the list is exhaustive:
+
+| Class | What it is |
+| :--- | :--- |
+| `.btn-primary` | The single solid CTA per view (§1.2). |
+| `.btn-secondary` | Neutral toolbar and standard actions. |
+| `.btn-ghost` | Utility, no fill; pairs with `.btn-icon`. Also the way back to the cards, *← Assignments* (§6). |
+| `.btn-link` | Reads as a link, behaves as a button. **Never `.link-btn`** (§7). |
+| `.btn-danger` / `.btn-danger-outline` | Destructive. Outline in a toolbar, solid where the destruction is the point of the view. |
+| `.btn-success` | Solid green. One use - the student's accepted state - and it should stay that way: success is normally a status dot (§4), not a button. |
+| `.btn-sm` / `.btn-xs` / `.btn-lg` | Size modifiers, combined with one of the above. `.btn-lg` is for a card's single decisive action, `.btn-xs` for controls inside a table row. |
+| `.btn-icon` | Square icon-only box, so a header rail keeps its rhythm. |
+| `.btn-with-icon` | Lays out an icon beside a label. Not a variant - it composes with any of them. |
+
+**A menu row unavailable for a standing reason is `aria-disabled="true"`, never `disabled`**, and its click is guarded in the handler. A `disabled` button leaves the Tab order, so the reason the row gives (*Available after deadline lockdown*) is never reached from the keyboard. `disabled` stays for a row busy for a moment (a read in progress), where there is nothing to read.
+
+---
+
+## 4. Status Indicator Reference
+
+```html
+<!-- Active / Success -->
+<span class="status-indicator">
+  <span class="status-dot dot-success"></span>
+  <span>On time</span>
+</span>
+
+<!-- Warning / Pending -->
+<span class="status-indicator">
+  <span class="status-dot dot-warning"></span>
+  <span>Late</span>
+</span>
+
+<!-- Neutral / Unstarted -->
+<span class="status-indicator">
+  <span class="status-dot dot-neutral"></span>
+  <span>No submission</span>
+</span>
+```
+
+**The complete set**, for the same reason §3 lists all of its variants:
+
+| Dot | Meaning |
+| :--- | :--- |
+| `.dot-success` | On time, repository ready, accepting - the state you wanted. |
+| `.dot-warning` | Late, pending, below minimum team size - needs a look, not an alarm. |
+| `.dot-danger` | Failed, refused, unfreezable - something did not happen. |
+| `.dot-neutral` | Not started, no submission, unknown. **Not** an error: an empty population is not a failure. |
+| `.dot-info` | Informational only. One use; prefer `.dot-neutral` unless the row genuinely reads as a notice. |
+
+**Missing work is neutral until its deadline and danger after it** (decided 2026-10-08). *No submission* and *Not handed in* are where every student starts, so before the deadline they are grey (`.dot-neutral`, and `.stat-neutral` on a card, where the label adds *yet*). After the deadline nothing more will come in, so they turn red (`.dot-danger`, `.stat-red`). The line is that student's own deadline (`pastDeadline` in `frontend/src/lib/grading-rows.js`). A card counts every student the table shows under it, so when only some of them are past their own deadline it is red and its label says how many (*Not handed in: 1 past their deadline*), and its hover says the others are not due yet: a red count over students with an extension overstated it. A red "20 grading failure(s)" four days before an exam's deadline was what prompted the rule: twenty students who simply had not finished.
+
+**An assignment's tabs share one layout** (asked 2026-10-08): summary cards that filter the table (`.summary-card`), one box under them saying where things stand (`.status-box` with `.diag-banner`, in style.css because Progress's starter-sync box and Grading's scores box are the same box), the search and filter pills on the left with the tab's own action and its menus on the right, then one table with a row per student. A student a tab has nothing to report on is still a row and says why, never a list at the bottom behind a click.
+
+**When the data on a tab was read sits beside the button that reads it again** (asked 2026-10-10), never in a footer under the table: `InfoBlock.vue`, left of *Refresh* and *Read all scores again*. Two lines in the summary cards' quiet type - what and how (*Commits read by the nightly check*), then when (the date in monospace, §2, and how long ago, kept current) - divided from the buttons by a single-side border so it does not read as one. One fact, and only the one about this tab's data: the GitHub quota was tried as a second block and did not fit (2026-10-10); it is on the Organization tab. Hovering adds only what the two lines do not say, and a block with nothing to add has no tooltip at all; its pointer says which is which. The time is the OLDEST read of the class, so it is true of every row.
+
+**A count on a tab** is `.tab-count`, in the attention tint like `.dot-warning`: how many things wait behind that tab. One use, the Organization tab's notices, shown from every page of the organization so a notice is seen where the lecturer already is. Unknown shows nothing, never `0`, and its `aria-label` says what is counted.
+
+---
+
+## 5. Theming (light / dark, seeded from the OS)
+
+The SPA is dual-theme. Both themes come from **one** token block in `frontend/src/style.css`;
+there is no second palette to keep in sync.
+
+```css
+:root {
+  color-scheme: light dark;                        /* DEFAULT: follow the OS */
+  --bg-canvas: light-dark(#f6f8fa, #0d1117);
+}
+:root[data-theme="light"]  { color-scheme: light; }
+:root[data-theme="dark"]   { color-scheme: dark; }
+:root[data-theme="system"] { color-scheme: light dark; }
+```
+
+`light-dark()` resolves against the **computed `color-scheme`**, so flipping that single property
+re-resolves every token - and themes native scrollbars, form controls and autofill for free.
+
+An absent `data-theme` attribute means **follow the OS**, which is both the default and the
+no-JS behaviour: a first-time visitor gets whichever theme their machine is set to, and the
+page is still correct if the boot script never runs. An explicit `light` or `dark` pins the
+theme regardless of the OS.
+
+### Runtime
+
+`frontend/src/lib/theme.js` owns the mode; `main.js` calls `initTheme()` at boot.
+
+| Export | |
+| :--- | :--- |
+| `resolvedTheme` | what is actually on screen - `'dark' \| 'light'` |
+| `setThemeMode(m)` | validate, persist, apply (invalid input is ignored) |
+| `toggleTheme()` | flips `resolvedTheme`; only ever produces `dark` or `light` |
+
+The stored choice - which may be `'system'` - is deliberately **not** exported.
+Every surface wants `resolvedTheme`: what is on screen is the only question a
+toggle, an icon or a screenshot can act on, and a caller comparing against
+`'system'` gets the wrong answer for the visitor who has never touched the
+control. `STORABLE_MODES` documents what may legitimately be stored.
+
+**The toggle has two states, not three.** `system` is the *implicit* state of a
+visitor who has never touched it - they get their OS theme and the control shows
+whichever theme resolved. The first press stores an explicit `dark` or `light`,
+and the app never returns to `system`: following the OS after someone has stated
+a preference would silently override them. Hence two exported lists - 
+`THEME_MODES` (`dark`/`light`, what the toggle emits) and `STORABLE_MODES`
+(plus `system`, what may be stored or arrive via `?theme=`).
+
+**Every toggle persists.** `setThemeMode()` writes to `localStorage` under **`pxl_theme`**,
+wrapped in `try`/`catch` (Safari private mode and blocked storage must not break boot), and
+`toggleTheme()` routes through it. A plain visit never writes a preference - only an
+explicit choice or a `?theme=` override does. That distinction matters: if a first load stored
+the resolved theme, it would silently pin whatever the OS happened to be and `system` could
+never follow a later OS change.
+
+**`?theme=dark|light|system`** forces and persists a mode. Useful for reviewing a screen in
+the other theme, and for sharing a link that opens that way.
+
+**The inline boot script in `index.html` duplicates the storage key and mode list on purpose** - 
+it must run before the module graph loads, or a light-mode user flashes dark on every load. It
+sits *after* the SPA shim so a deep link redirected through `404.html` has its `?theme=` restored
+before the script reads it. `tests/theme-tokens.test.mjs` asserts the two copies stay in sync.
+
+There is deliberately **no global colour `transition`** on the theme swap - it janks the
+data-dense tables. `<meta name="color-scheme" content="dark light">` covers the browser's
+first canvas fill before `style.css` lands.
+
+**Rules - non-negotiable, enforced by `tests/theme-tokens.test.mjs`:**
+
+1. **No colour literal outside `:root`.** No hex, no `rgb()`/`rgba()`, no named colours in any
+   component `<style>` block or inline `style=` attribute. `transparent` / `currentColor` are fine.
+2. **No `var(--token, #fallback)` fallbacks.** A fallback is a hardcoded colour that silently
+   pins one theme, and it hides the typo in rule 3.
+3. **Every `var(--token)` must resolve** to a token defined in `:root`. Undefined tokens fail
+   *silently* in CSS - `--border-color` and `--accent-amber` shipped broken for exactly this reason.
+4. **Every colour token must use `light-dark()`.** Theme-invariant tokens (`--text-on-emphasis`)
+   live in the marked invariant block and are the only exemption.
+
+## 6. Application Chrome
+
+### `AppHeader.vue` - the one app bar
+
+Every route renders exactly one `<AppHeader>`. Two shapes:
+
+* **Brand** (default slot content): logo + "PXL Classroom", both linking home.
+* **Breadcrumb** (`#left` slot): `.app-header-crumbs` with a `.back-link`, `.app-header-sep`
+  separators and an `.app-header-heading`. Intermediate segments that navigate are
+  `.crumb-link` - the org name sat between two links as plain text, which reads as broken.
+
+**Every page of an organization shares ONE bar** (`OrgShell.vue`, the route those pages are
+children of): logo, the org picker (`OrgPicker.vue`) and, below the org, where you are
+(an assignment's name, *New assignment*) on the left; the org's tabs in the **`#center`**
+slot; the account on the right. Drawn once, so moving between the org's pages swaps only
+the page under it. It replaced a bar per page, and that is what the lecturer saw on
+2026-10-03: every click rebuilt the bar, the tabs vanished until the new page had loaded,
+and they sat wherever that page's breadcrumb ended - further right on the dashboard, whose
+org picker is wider than a crumb.
+
+* **The centre is centred on the window**, not after the left side: `.app-header-bar.has-center`
+  is a three-column grid with equal outer columns (`style.css`), so the tabs are in the same
+  place on every page. Under 900px they take their own row.
+* **The centre slot is always present**, so the bar keeps its columns and nothing moves when
+  the tabs arrive. The tabs (`OrgSwitch`: **Assignments**, **Roster**, **Organization**) show
+  once this session has seen the account read that org (`lib/org-session.js`, set by the page
+  that read it), and never before: an org reaches the picker for any student whose
+  installation touches it, and a staff surface is gated on demonstrated capability.
+* An assignment's own views (Progress, Teams, Grading, Settings) are not here: they are the
+  tabs under its header (`AssignmentHeader.vue`), and Assignments stays lit on all of them,
+  still leading back to the list.
+* **The way back is "← Assignments" at the start of the page.** Lit on every assignment, the
+  centre tab read as where you are rather than as a way back, and a lecturer could not find
+  the cards again (2026-10-05). It is the first thing in the assignment's header row, then a
+  thin rule, then the state button; and above the New assignment form. It is a **ghost
+  button** (`.btn .btn-ghost .btn-sm`, §3) rather than loose text, so it has the state
+  button's height and line, a hover fill and the focus ring; `.back-to-list` only pulls it
+  left by its padding so the arrow sits on the page's edge. The rule separates the way out
+  from the controls that act on the assignment. It was tried in the trail first (org /
+  Assignments / title) and rejected the same day: the trail grew too long for its column
+  and ran under the tabs.
+* **The trail is org / the assignment's title**, never its slug: the page below tells the bar
+  the title once it has read it (`lib/assignment-crumb.js`), and until then it has only the
+  slug. The left column fills its track (`justify-self: stretch`) so a long title ends in "…"
+  before the tabs.
+* **One route told apart by a query is not N current pages.** The assignment tabs are
+  `?tab=`, and the router ignores the query when it decides a link is current - so every
+  tab was announced as `aria-current="page"` at once. Those tabs render their links with
+  `custom` and say which is current themselves.
+
+Views add buttons via `#actions`; the rail then always appends `<ThemeToggle>` and, when a
+`user` prop is passed, `<UserBadge>`. Props: `user`, `contained` (wrap in `.container`),
+`sticky`.
+
+> **`AppHeader.vue` has no `<style scoped>` block, and must not gain one.** Slot content is
+> compiled in the *parent's* scope and carries the parent's `data-v-*` attribute, so a scoped
+> rule here can never reach the breadcrumbs and actions views pass in. The `.app-header-*`
+> vocabulary lives in `style.css`. `tests/scoped-style-leakage.test.mjs` enforces this.
+
+### `AuthCard.vue` - the one sign-in surface
+
+```html
+<AuthCard v-if="!user" title="Sign in to view usage" @authenticated="onAuthenticated">
+  Sign in with a GitHub account that owns <strong>{{ org }}</strong>.
+</AuthCard>
+```
+
+AuthCard owns the whole device flow - button, spinner, `DeviceFlowCard`, cancellation, and
+aborting the poll on unmount - and emits `authenticated(user)`. The view supplies only the
+title, the description (default slot) and what to load afterwards:
+
+```js
+async function onAuthenticated(authedUser) {
+  user.value = authedUser
+  await loadReport()
+}
+```
+
+Rules:
+* Sign-in failures render **inside** the card (`.auth-error`), never as a page-level error state.
+* Every authenticated view shows an AuthCard when there is no session - never a data-shaped
+  empty state such as "No assignments yet".
+* `.center-card`, `.auth-error` and `.spinner-sm` are **global**. They were previously
+  redeclared in per-view scoped blocks, which left `/usage` and `/dashboard/:org/usage`
+  rendering their sign-in, loading and empty states completely unstyled.
+
+**Exception:** `HomeView`'s signed-out hero keeps a bespoke sign-in. It is a landing hero - 
+logo, product name, tagline - not a card, and forcing it into AuthCard would flatten that
+design. It is the only remaining copy of the device-flow handler.
+
+### A dialog is a component, and it owns its own state
+
+`AssignmentDetailView` and `AdminView` held four dialogs inline - their markup,
+their form state, their focus handling and their scoped styles spread through
+views of 3,800 and 3,200 lines. They are components now:
+`StudentActionsModal`, `FeedbackPrModal`, `FreezeConfirmModal`,
+`RepublishBrokerModal`, alongside the `AutogradeResultsModal` that ended a
+70-line duplication between `AssignmentDetailView` and `TeamsTable`.
+
+Three rules came out of doing it:
+
+* **A form that exists only while a dialog is open is the dialog's state.**
+  `actionExt` and `regenerateInvite` were refs on the views, so they outlived
+  every close and had to be reset by hand on every open. With `v-if` on the
+  parent the component is created fresh, and there is nothing to reset.
+* **Focus is not view logic.** `composables/useFocusTrap.js` owns the ref, the
+  Tab cycling and giving focus back to the trigger. It was three pieces of one
+  behaviour, 1,800 lines apart, in exactly one of the app's dialogs.
+* **Scoped styles do not cross a component boundary, so they move with the
+  markup.** Extracting a dialog and leaving its rules in the parent renders it
+  completely unstyled - `tests/scoped-style-leakage.test.mjs` caught 12 of them
+  in one go. A rule that two components then need goes to `style.css` (§7).
+
+**Decisions stay with the thing that owns the rule.** `FreezeConfirmModal` takes
+the archive repository *name* as a prop rather than composing it, because
+`lib/archive-repo.mjs` is the only thing allowed to decide where a preservation
+goes; `StudentActionsModal` collects the extension but does not validate it,
+because `lib/effective-deadline.mjs` decides what "later than the current
+deadline" means. A dialog that re-derived either would be the second
+implementation those modules exist to prevent.
+
+### Only the body of a dialog scrolls
+
+A dialog's title and its buttons stay on screen; the part between them scrolls.
+Until 2026-10-04 the whole `.modal` scrolled at 90vh, so a long member list
+pushed *Save* below the fold and the only sign was a scrollbar down the dialog's
+edge, read as "it does not fit". Primer's Dialog does it this way, and so does
+every dialog here now: `.modal` is a flex column, `.modal-head` and
+`.modal-foot` (or `.modal-actions`) do not shrink, and `.modal-body` takes what
+is left and scrolls (`style.css`).
+
+* **The head, the body and the foot are the dialog's direct children.** A
+  footer inside the body scrolls away with it; six dialogs had theirs there.
+  A form that must hold its submit button wraps body and foot in `.modal-form`,
+  which carries the same layout one level down, so Enter still submits.
+* **Nothing inside the body scrolls on its own.** A 260px list inside a body
+  that scrolls is two scrollbars for one list; the copy-teams preview, the
+  regrade commit list and the team pickers lost theirs.
+* `overflow-y: auto` stays on `.modal` as the fallback, so a dialog built some
+  other way still scrolls whole rather than clipping.
+
+`tests/e2e/96-teams-tab-truth.spec.mjs` opens one at 520px tall and checks that
+the buttons are in view and the body, not the dialog, is what scrolls.
+
+### A confirmation is asked in the page, and its button says what it does
+
+`window.confirm()` cannot name its button - it says OK whatever is about to
+happen - and cannot be styled, so on the Teams tab *Move*, *Delete* and *Undo
+copy* were confirmed by a grey system box beside a page that otherwise speaks in
+sentences. `ConfirmDialog.vue` asks instead, after Primer's ConfirmationDialog:
+
+* the title is the question (*Move @ann to Bravo?*) and the button is the
+  action (*Move @ann*, *Delete team*), never *OK* or *Yes*;
+* a destructive answer is the solid `.btn-danger` (§3: the destruction is the
+  point of that view) and **Cancel has the focus**, so the Enter a lecturer
+  presses out of habit is the harmless one; otherwise the action is
+  `.btn-primary` and has it;
+* the body is computed from the case in hand, never one sentence for all
+  cases (`frontend/src/lib/team-edit.js`), because it is what a lecturer reads
+  to decide whether to warn a student.
+
+**Every confirmation in the app is asked this way** (2026-10-06): one service,
+`frontend/src/lib/confirm.js` (`askConfirm`, `askDiscard`, and `askText` for the
+one question that needs something typed), drawn by one host, `ConfirmHost.vue`,
+mounted after the router view in `App.vue` so it stacks over any page's own
+dialog. `window.confirm`, `prompt` and `alert` are refused by
+`tests/confirm-service.test.mjs`. Leaving unsaved work behind is one question
+in one wording (*Discard unsaved changes?* / **Discard changes**), wherever it
+is asked.
+
+The browser's box blocked the whole page; a page question does not, so the
+states it can reach are decided rather than left to chance:
+
+* **A second question answers the open one *no*** and is the one shown. Two at
+  once would leave one unanswerable behind the other.
+* **A completed navigation answers an open question *no*.** A question belongs
+  to the page that asked it; answered *yes* after the browser's Back, it would
+  act on a page nobody is on. A leave guard's own question is answered before
+  its navigation completes, so it is never the one dismissed.
+* A route guard returns the question's promise, and vue-router waits for it;
+  the sign-in is cleared only after every guard said yes.
+
+`tests/e2e/97-confirm-dialogs.spec.mjs` drives each of these on a real flow.
+
+## 7. Shared Component Vocabulary
+
+Vue `<style scoped>` **does not leak**. A class declared in one component's scoped
+block and used by another renders completely unstyled there - no build error, no
+console warning. That shipped 86 times before it was swept, and separately broke
+`.center-card`, `.dashboard-header`, `.sandbox-header` and `.auth-error`.
+
+**Rule: if more than one component uses a class, it belongs in `style.css`.**
+Anything passed into a `<slot>` counts, because slot content is compiled in the
+*parent's* scope (§6). `tests/scoped-style-leakage.test.mjs` enforces this.
+
+### A class declared nowhere is the same bug
+
+`tests/scoped-style-leakage.test.mjs` catches "used here, scoped over there". It
+deliberately skips the other half - `if (!owners) continue; // not styled
+anywhere` - and that gap is how two things shipped:
+
+* **`.btn-warning`**, used seven times across `AdminView` and
+  `StudentDiagnosticsModal`, declared in neither `style.css` nor any scoped
+  block. Every one rendered with the plain `.btn` face. It is not a §3 variant
+  either; those buttons are now `.btn-secondary`, or `.btn-danger` where the
+  action is destructive.
+* **`.font-semibold`**, written in **ten** components and declared in none of
+  them, so every heading meant to be semibold rendered at the body weight. Same
+  for `.font-medium`, `.font-bold`, `.uppercase`, `.text-xl`, `.text-left` and
+  `.list-disc`. They now sit in `style.css` beside `.text-sm` / `.text-xs`.
+
+This is exactly §5 rule 3 (“every `var(--token)` must resolve”) applied to class
+names: **an undeclared class fails silently**, with no build error and no console
+warning, and a test that reads the *template* will happily confirm the class is
+there.
+
+`scripts/lint-undeclared-classes.mjs` lists them; `tests/undeclared-classes.test.mjs`
+pins the remainder in `tests/fixtures/undeclared-classes.backlog.json`. Nothing
+new may join that list, and a class that gets declared must be removed from it.
+
+The 2026-09-01 pass took it from 98 to 60 by triaging it, because the entries
+were never one thing:
+
+| Group | Then | What it is | What happened |
+| :--- | ---: | :--- | :--- |
+| Inline-styled | 17 | The element carried a `style="…"` saying what the class meant | Moved into a stylesheet. **No visual change** - the values are unchanged. |
+| Conditional | 6 | Applied by a `:class` to make a state visible, and declared nowhere | **Defects.** Declared, from existing tokens. |
+| Shared | 14 | Used by two or more components, so a scoped block could never reach both | Declared in this file's stylesheet. Now **zero**. |
+| Hooks | ~60 | Page roots and e2e selectors (`.admin-view`, `.sandbox-page`) never meant to carry a look | Left, and that is the answer. |
+
+The six conditional ones are why this stopped being tidy-up.
+`banner-success`/`banner-warning` meant a **passing and a failing autograding
+run rendered identically**; `is-complete` meant a finished onboarding step
+looked unfinished; `spin-anim` meant the refresh icon never span; `clean` /
+`conflict` / `skipped` meant the three outcomes of a pre-flight scan were three
+identical cards. A class applied conditionally exists *to* make a state visible,
+so declaring nothing is the bug - the same shape as §5 rule 3.
+
+`text-error` was **deleted rather than declared**: `.text-danger` already exists,
+and a synonym is the `.link-btn` mistake again.
+
+What remains is the honest half of the register - vocabulary whose intended
+appearance is recorded nowhere, which needs a design decision rather than a
+guess. **A multi-component entry is not that**, and a test now refuses one: a
+scoped block cannot reach another component, so leaving it renders unstyled in
+both.
+
+#### The remainder is two groups, and the split is computed
+
+"Left, and that is the answer" was the right call and it was only a claim - a
+flat list of sixty invites the next reader to restyle sixty elements that were
+never broken. `classifyUndeclared()` in `scripts/lint-undeclared-classes.mjs`
+now separates them, and `tests/undeclared-classes.test.mjs` holds both halves:
+
+* **38 sit on an element that carries another *declared* class** - `card`,
+  `flex`, `btn`, `alert-info`, `fade-in`. That is a positive proof: the element
+  is styled whatever the undeclared word does, so the word is a name and there
+  is nothing to decide.
+* **21 sit on an element with no declared class at all.** That is *not* the
+  negative - an element's look can come from its tag or an ancestor, which only
+  a browser knows - so each one carries a written reason, and the test refuses
+  an entry without one or a reason that outlived its entry.
+
+Those 21 were checked rather than assumed, with a Playwright probe that asked
+the browser which rules actually matched each element (the universal reset
+excluded, or everything looks styled). What it found:
+
+| Why it needs no rule | Examples |
+| :--- | :--- |
+| A scoped rule styles the **tag** | `.advanced` on `<details>`, `.col-ci`/`.col-score` on `<th>`/`<td>` |
+| The **element default** is the intent | `.team-name` on `<strong>` |
+| A **sibling** does the work | `.org-item-text` - `.org-dropdown-item` is flex and `.check-icon` carries `margin-left: auto` |
+| An **ancestor** sets it | `.deadline` inherited size and colour from `.assignment-list .meta` (that list is gone with the Admin page, and the class with it) |
+| It carries an **inline style** | `.template-preflight-badge`, `.diff-patch-view-container` |
+| **Page root**, no look intended | `.not-found-page`, `.usage-page`, `.student-dashboard` |
+
+`.field-label` came off the list rather than onto it: the `<label>` sits inside
+`<div class="field">`, and `.field label` already styles it, so the name was a
+synonym for a rule that exists. **A static scan cannot see that** - it is why
+the browser had to be asked, and why "the element has no declared class" is
+worded as *needs a reason*, not *is broken*.
+
+The app declares **no `code` or `pre` rule anywhere**, so every `<code>` renders
+at the browser default. That is consistent rather than accidental, and changing
+it is a decision about type in §2. (`.file-path` came off the list on
+2026-09-25: the sync dialog's catch-up rows ellipsise a long path, which is a
+layout rule, not a type one.)
+
+Global vocabulary now includes:
+
+| Group | Classes |
+| :--- | :--- |
+| Layout | `.center-card`, `.empty-state`, `.loading-state`, `.app-header-*` |
+| Forms | `.field` (+ `label`, `small`), `.form-control`, `.form-hint`, `.req` |
+| Sortable table headings | `<SortableTh :sort col>`, which draws `th.sortable`, `.th-label` and `<SortIcon>`, over the table's `useTableSort()` (`composables/useTableSort.js`), sorted by `sortRows` (`lib/table-sort.js`: blanks last both ways, numbers as numbers, `3A` before `12A`). Every sortable table uses all three: Progress, Grading, Teams, Roster and both usage tables, which until 2026-10-20 held six copies of the state, five comparators and three arrows, and the Teams table sorted on nothing. `tests/table-sort.test.mjs` refuses a hand-written `<th aria-sort>`. |
+| Table cells read the same way | `<RepoIconLink>` (the repository as an icon, §7 below), `<LastCommitCell>` (how long ago, then the SHA; what "last commit" is lives in `lib/last-commit.js`, and a team's is the member row on its repository) and `<ArchiveLink>` (where a preserved submission is, under the status, never a column of its own). The Progress and Teams tables both draw them. |
+| Status text | `.status-icon` (+ `-success`, `-warn`, `-error`, `-pulse`), `.status-text` |
+| Stat colours | `.stat-green`, `.stat-yellow`, `.stat-red`, `.stat-blue` |
+| Utilities | `.text-center`, `.text-green`, `.text-yellow`, `.text-blue`, `.spinner-sm`, `.btn-icon` |
+| Components | `.repo-link`, `.repo-link-card`, `.progress-bar` (+ `-fill`), `.diag-banner` |
+| Menus | `.dropdown-container` (the anchor), `.export-dropdown-menu` (the floating surface, anchored right; a menu whose trigger sits on the left overrides that), `.export-dropdown-menu.invite-menu`. Scoped inside `AssignmentDetailView` until 2026-10-02, when the state and Invite link menus moved into `AssignmentHeader`. |
+| Menu rows | `.export-dropdown-item` (+ `.dropdown-icon`, `.dropdown-item-text`, `.dropdown-item-title`, `.dropdown-item-sub`), `.dropdown-divider`. The assignment page's Export, More and Invite link menus, and the state menu. Scoped inside `AssignmentDetailView` while it drew every row itself; shared since 2026-09-30, when the Invite link menu, drawn by `InvitationShare`, was rebuilt from the same rows. A row that is a link needs `a.export-dropdown-item:hover` too, or the global `a:hover` turns it blue and underlines it. |
+
+### Contextual help
+
+A control whose meaning is not obvious from its label carries a `<HelpButton>` - 
+a small `?` beside the label, never in place of one. It opens the help drawer on
+one topic from `MANUAL.md`; it is not a tooltip and it does not explain itself in
+passing.
+
+Three rules, and they are what keep it from turning into decoration:
+
+- **The drawer renders once, in `App.vue`, beside `<router-view>`.** It is
+  `position: fixed`, so any ancestor carrying `transform`, `filter`,
+  `perspective`, `will-change` or `contain` becomes its containing block and puts
+  it off-screen - the failure `tests/e2e/47` exists for. Putting it inside a view
+  reintroduces that.
+- **A help button carries a topic id and nothing else.** No prose in the markup.
+  The topic lives in `MANUAL.md`, and `tests/manual-topics.test.mjs` fails if the
+  id does not exist.
+- **Use it for a setting a lecturer asks about, not for every field.** A `?` on
+  everything is a `?` on nothing. `title=` stays the right answer for naming an
+  icon; a drawer is for a decision with consequences.
+
+A topic that only needs one line does not need a drawer - say it in the field's
+own `small`, which is already the vocabulary for that.
+
+Where several components had **diverged** on a class, the global rule is the
+shared base and each owner keeps its scoped override - which still wins on the
+`[data-v-*]` specificity, so no existing view shifted.
+
+**Use `.btn-link`, never `.link-btn`.** The latter was a scoped re-implementation
+of the §3 text-button in three components; it is gone.
+
+### A `<summary>` with `display: flex` loses its triangle
+
+Same family of silent failure. Setting any `display` other than `list-item` on a
+`<summary>` removes the native disclosure marker, with no warning - the control
+still toggles, it just stops looking like one, and a heading nobody thinks to
+click is worse than no disclosure at all. A `<summary>` that needs flex to place
+something beside its label carries its own `chevron-down` `Icon` and rotates it
+`-90deg` while closed. (The assignment editor's *Edit settings* fold was the
+case that taught this; the fold itself went on 2026-10-03, see §1.8.)
+
+### A grid track is `minmax(0, 1fr)`, never a bare `1fr`
+
+A `1fr` track's automatic minimum is its content's **min-content** size, and for
+anything with `white-space: nowrap` min-content equals max-content. The admin
+editor's `.invitation-link` is a nowrap 122-character URL, so the track grew to
+fit the whole thing and the page scrolled 208px sideways on a 375px phone - 
+invisible at desktop width. `min-width: 0` on the flex item does **not** fix it:
+that bounds the flex minimum, not the grid track's intrinsic minimum. The floor
+goes on the track, and the child then does what it was already styled to do
+(ellipsise).
+
+`tests/e2e/25-responsive-layout.spec.mjs` measures this. Its route sweep had
+visited `/dashboard/:org/admin` with **nothing open**, where the editor pane is
+a two-line empty state - so the pane holding the entire assignment form was
+never measured at any width. It now opens an assignment's Settings tab
+(`/dashboard/:org/:id/settings`, the same editor), collapsed and expanded, at
+all seven widths.
+
+**And it only ever measured that route on the Assignments tab.** The Roster tab
+is the denser of the two - a five-column table with an email address in it, a
+CSV textarea, filter chips, a four-button toolbar and a hint line under every
+unidentified row - and nothing had measured it at any width. It is swept now,
+with long values on purpose: a roster of `alice`/`bob` proves nothing about a
+column whose intrinsic width is set by its longest unbreakable token.
+
+**A table inside its own scroller needs the other measurement too.** The page
+not scrolling sideways is what this spec asks, and a table in an `overflow-x`
+container satisfies it however wide the table gets - so a hint that took the
+roster table's own scroll from 71px to 219px at 375px, pushing three columns out
+of view, passed here and had to be caught by measuring *the scroller* in
+`tests/e2e/63`. Both questions are real; neither answers the other. And declare
+the axis: `.roster-table-wrapper` scrolled horizontally only because
+`overflow-x: visible` computes to `auto` when the other axis is not visible, so
+removing the `max-height` would have taken the page sideways with it.
+
+### A `nowrap` table pays for every column out of one width
+
+The assignment page's student table gets 1190px on any screen 1500px or wider
+(the 1240px container, less its gutter and the wrapper's border; a little more
+between 1240 and 1500, where the gutter is still growing). Every cell is
+`white-space: nowrap`, so a column is as wide as its widest cell **or its
+heading**, whichever is longer. Reported 2026-09-30 from a cohort of 36: the
+commit count and the row menu were out of view on a full-width desktop. The old
+layout needed 1407px, and 1582 with grades showing. Three columns were wide for
+nothing (widths measured by spec 89 against the old layout):
+
+| Column | Was | Why | Now |
+| :--- | ---: | :--- | :--- |
+| Confirmed address | 378px | the address and its note sat side by side | the note is under the address (most rows are two lines tall already, because Last commit is); the address is cut at `15rem` with an ellipsis and is whole in its `title` |
+| Repo | 288px | on an individual assignment the name is a prefix every row shares, then the login from the first column | an icon link, the name in its `title` and its accessible name (`RepoIconLink`, the Teams table's too) |
+| Commits | 86px | the heading, over cells of one to five characters (`1,043`) | `#`, still named Commits on hover and to a screen reader |
+
+Cell padding went from 14px to 12px on the same day, which is 40px across a
+graded table's ten columns.
+
+`tests/e2e/89-student-table-fits.spec.mjs` reads what the table **needs**
+against what its scroller has, at 1920px: 1000 of 1190px, and 1167 once CI
+Status and Score are showing. The second number is tight, 23px, which is less
+than any column.
+Run it before adding a column or lengthening a label here. Feedback PR and Team
+are not in that budget: an assignment showing them on top of grades still
+scrolls inside the table's own box.
+
+It waits for Inter before measuring, because `index.html` loads the font late on
+purpose and the table needs 38px more once it has swapped in. A measurement
+taken at "the rows are visible" is a measurement of the fallback font.
+
+## 8. Visual Sandbox & Interactive Testing
+
+> **`/sandbox` is a development-only route.** It is registered behind
+> `import.meta.env.DEV` in `frontend/src/router/index.js`, so the branch and its
+> dynamic import are dropped from a production build and the catch-all renders
+> 404 instead. It renders fabricated cohort data - invented student logins,
+> teams and reports - and it shipped to a public Pages site for months with no
+> link to it from anywhere. Nothing found it, which is not the same as nothing
+> being able to. `tests/vue-route-safety.test.mjs` fails if the gate is removed.
+
+An offline interactive workbench is available at the route **`/sandbox`**. It allows developers to:
+- Inspect all tonal surface swatches, border contrast, and typography scales.
+- Interact with button hierarchies, sizes, and spinner states.
+- Test `.status-indicator` + `.status-dot` variants in data tables.
+- Launch `StarterSyncModal`, `SystemHealthModal`, `SeedTeamsModal`, and `TeamsTable` with realistic, deterministic mock data fixtures without requiring live GitHub API credentials.
