@@ -5,7 +5,7 @@
   <img src="services/web/public/logo-wordmark.svg" alt="microshort" width="272" height="64">
 </picture>
 
-A URL shortener built as **three small services and one PostgreSQL database**, written to be deployed by students in several ways (bare VMs with Ansible, containers, Kubernetes, AWS with Terraform) without changing a line of code.
+A URL shortener built as **three small services and one PostgreSQL database**.
 
 > The application provides functionality and a configuration contract.
 > The students provide the infrastructure.
@@ -23,13 +23,13 @@ A URL shortener built as **three small services and one PostgreSQL database**, w
   Admin ──▶ web :3001 ──(browser)──▶ api
 ```
 
-Everything a deployer needs (ports, env vars, health endpoints, exposure rules): [DEPLOYMENT-CONTRACT.md](./DEPLOYMENT-CONTRACT.md).
+Everything a deployer needs: [DEPLOYMENT-CONTRACT.md](./DEPLOYMENT-CONTRACT.md).
 
 ---
 
 ## Run it locally (reference stack)
 
-Requires Docker with Compose v2. This compose file is for local development and CI; it is **not** the deployment.
+Requires Docker with Compose v2. This compose file is for local development and CI only.
 
 ```bash
 cp .env.example .env     # placeholders are fine locally

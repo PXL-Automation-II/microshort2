@@ -1,6 +1,6 @@
 # Deployment contract
 
-This is the complete list of what the three microshort 2 services need from their environment. Nothing else is assumed: no orchestrator, no service discovery, no cloud provider, no shared filesystem. If a deployment satisfies this contract, the application works.
+This is the complete list of what the three microshort 2 services need from their environment.
 
 ---
 
@@ -141,7 +141,7 @@ Logs are JSON lines on stdout (pino), one object per request, with `X-Request-ID
 
 ## 6. Startup, shutdown, restarts
 
-**Startup order is not enforced by the application.** If `api` starts before PostgreSQL is reachable, its migration step fails and the process exits with code 1 on purpose: the deployment is expected to restart it. Under compose that is `restart: unless-stopped` (already set), under Kubernetes the normal restart backoff (observed on k3d: three restarts, then healthy), on a VM a systemd unit with `Restart=on-failure` and `RestartSec=5`. A unit without a restart policy stays dead; that is the first thing to check when api is "not running" after a reboot.
+**Startup order is not enforced by the application.** If `api` starts before PostgreSQL is reachable, its migration step fails and the process exits with code 1. A proper restart policy is advisable.
 
 All services handle `SIGTERM`: stop accepting connections, finish in-flight requests, flush buffered click events (redirect), close the database pool (api), exit 0 within 15 seconds. Give them at least that long (`terminationGracePeriodSeconds` ≥ 15, `TimeoutStopSec` ≥ 15).
 
@@ -156,5 +156,3 @@ All services handle `SIGTERM`: stop accepting connections, finish in-flight requ
 ## 7. Secrets
 
 Three values are secrets: `DATABASE_URL` (contains the password), `JWT_SECRET`, `SERVICE_TOKEN`. The services read them from the environment and nowhere else, so every injection mechanism works: an `EnvironmentFile=` in a systemd unit, Ansible Vault, Docker/Kubernetes Secrets, AWS SSM Parameter Store or Secrets Manager fed into the task or instance environment.
-
-In `NODE_ENV=production` the services refuse to start if a secret still contains the string `change-me`.
